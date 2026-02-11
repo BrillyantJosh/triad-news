@@ -1,0 +1,23 @@
+services:
+  web:
+    build: .
+    container_name: triad-news
+    restart: unless-stopped
+    expose:
+      - "3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - VIRTUAL_HOST=lanasee.us,www.lanasee.us
+      - VIRTUAL_PORT=3000
+      - LETSENCRYPT_HOST=lanasee.us,www.lanasee.us
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_PATH=/app/data/triad.db
+      - MAX_ANALYSES_PER_HOUR=20
+      - NODE_ENV=production
+    networks:
+      - webproxy
+
+networks:
+  webproxy:
+    external: true
