@@ -11,7 +11,7 @@ services:
       - VIRTUAL_HOST=lanasee.us,www.lanasee.us
       - VIRTUAL_PORT=3000
       - LETSENCRYPT_HOST=lanasee.us,www.lanasee.us
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - DATABASE_PATH=/app/data/triad.db
       - MAX_ANALYSES_PER_HOUR=20
       - NODE_ENV=production

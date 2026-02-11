@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { TriadAnalysis } from "./types";
 
 const TRIAD_SYSTEM_PROMPT = `Si analitik novic, ki deluje po principu triade (teza-antiteza-sinteza).
@@ -47,12 +46,10 @@ export async function analyzeArticle(
   sourceId: string,
   sourceBias?: string
 ): Promise<TriadAnalysis> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY ni nastavljen");
+    throw new Error("GOOGLE_AI_API_KEY ni nastavljen");
   }
-
-  const client = new Anthropic({ apiKey });
 
   const userPrompt = `Analiziraj to novico s triadno metodo:
 
@@ -62,23 +59,55 @@ POVZETEK: ${summary || "Ni povzetka — analiziraj na podlagi naslova."}
 
 Vrni JSON.`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-5-20250514",
-    max_tokens: 1500,
-    system: TRIAD_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: TRIAD_SYSTEM_PROMPT }],
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: userPrompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1500,
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
 
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Gemini API napaka (${response.status}): ${err}`);
+  }
 
+  const data = await response.json();
+
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Gemini ni vrnil odgovora");
+  }
+
+  // Parse JSON — Gemini with responseMimeType returns clean JSON
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Claude ni vrnil veljavnega JSON");
+  if (!jsonMatch) throw new Error("Gemini ni vrnil veljavnega JSON");
 
   const parsed = JSON.parse(jsonMatch[0]) as TriadAnalysis;
 
   // Validate required fields
-  if (!parsed.transformed_title || !parsed.thesis || !parsed.antithesis || !parsed.synthesis) {
+  if (
+    !parsed.transformed_title ||
+    !parsed.thesis ||
+    !parsed.antithesis ||
+    !parsed.synthesis
+  ) {
     throw new Error("Nepopolna triadic analiza");
   }
   if (typeof parsed.harmony_score !== "number") {
