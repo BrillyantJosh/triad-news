@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getArticleById, saveAnalysis, getRecentAnalysisCount } from "@/lib/db";
+import {
+  getArticleById,
+  saveAnalysis,
+  saveOriginalContent,
+  getRecentAnalysisCount,
+} from "@/lib/db";
 import { analyzeArticle } from "@/lib/claude";
+import { scrapeArticleContent } from "@/lib/scraper";
 import { getSourceById } from "@/lib/sources";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         analysis: {
           transformed_title: article.transformed_title,
+          transformed_content: article.transformed_content,
           category: article.category,
           thesis: { label: article.thesis_label, text: article.thesis_text },
           antithesis: {
@@ -63,17 +70,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Step 1: Scrape full article content
+    console.log(`Scraping article content from: ${article.url}`);
+    const { content: scrapedContent, wordCount } = await scrapeArticleContent(
+      article.url
+    );
+
+    if (scrapedContent) {
+      saveOriginalContent(article.id, scrapedContent);
+      console.log(
+        `Scraped ${wordCount} words from ${article.source_id}: ${article.original_title.slice(0, 50)}...`
+      );
+    }
+
+    // Step 2: Analyze with Gemini (full content if available)
     const source = getSourceById(article.source_id);
     const analysis = await analyzeArticle(
       article.original_title,
       article.original_summary || "",
       article.source_id,
-      source?.bias
+      source?.bias,
+      scrapedContent || undefined
     );
 
+    // Step 3: Save analysis
     saveAnalysis(article.id, analysis);
 
-    return NextResponse.json({ analysis, cached: false });
+    return NextResponse.json({
+      analysis,
+      cached: false,
+      scraped_words: wordCount,
+    });
   } catch (err) {
     console.error("POST /api/analyze error:", err);
     const message =

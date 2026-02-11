@@ -3,6 +3,8 @@ import { getSourceById } from "@/lib/sources";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -27,6 +29,11 @@ export default async function ArticlePage({ params }: Props) {
         minute: "2-digit",
       })
     : null;
+
+  // Split transformed content into paragraphs
+  const contentParagraphs = article.transformed_content
+    ? article.transformed_content.split(/\n\n+/).filter((p) => p.trim())
+    : [];
 
   return (
     <div className="min-h-screen">
@@ -57,7 +64,7 @@ export default async function ArticlePage({ params }: Props) {
 
       <article className="max-w-4xl mx-auto px-4 py-12 sm:px-6">
         {/* Meta */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-4 mb-6">
           {source && (
             <span className="flex items-center gap-2 text-sm text-white/50">
               <span
@@ -75,6 +82,11 @@ export default async function ArticlePage({ params }: Props) {
               {article.category}
             </span>
           )}
+          {isAnalyzed && (
+            <span className="px-3 py-1 text-xs rounded-full bg-green-400/10 text-green-300 border border-green-400/20">
+              Preoblikovano
+            </span>
+          )}
         </div>
 
         {/* Title */}
@@ -86,13 +98,13 @@ export default async function ArticlePage({ params }: Props) {
             >
               {article.transformed_title}
             </h1>
-            <p className="text-lg text-white/30 line-through italic mb-6">
+            <p className="text-base text-white/25 line-through italic mb-8">
               {article.original_title}
             </p>
           </>
         ) : (
           <h1
-            className="text-3xl sm:text-4xl font-bold text-white/70 leading-tight mb-6"
+            className="text-3xl sm:text-4xl font-bold text-white/70 leading-tight mb-8"
             style={{ fontFamily: "var(--font-playfair), var(--font-serif)" }}
           >
             {article.original_title}
@@ -167,12 +179,81 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         )}
 
+        {/* === PREOBLIKOVAN CELOTEN ČLANEK === */}
+        {isAnalyzed && contentParagraphs.length > 0 && (
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-[1px] bg-gradient-to-r from-green-400/50 to-transparent" />
+              <h2 className="text-sm font-semibold text-green-400/70 uppercase tracking-wider">
+                Preoblikovan članek
+              </h2>
+              <div className="flex-1 h-[1px] bg-gradient-to-r from-green-400/20 to-transparent" />
+            </div>
+            <div className="space-y-5 pl-0 sm:pl-2">
+              {contentParagraphs.map((paragraph, i) => (
+                <p
+                  key={i}
+                  className="text-base sm:text-lg text-white/75 leading-relaxed"
+                >
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* === ORIGINAL CONTENT (collapsed) === */}
+        {article.original_content && (
+          <details className="mb-12 group">
+            <summary className="flex items-center gap-3 cursor-pointer mb-4">
+              <div className="w-8 h-[1px] bg-gradient-to-r from-white/20 to-transparent" />
+              <span className="text-sm text-white/30 uppercase tracking-wider hover:text-white/50 transition-colors">
+                Originalni tekst
+              </span>
+              <svg
+                className="w-3 h-3 text-white/20 group-open:rotate-90 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </summary>
+            <div className="space-y-4 pl-0 sm:pl-2 opacity-60">
+              {article.original_content
+                .split(/\n\n+/)
+                .filter((p) => p.trim())
+                .map((paragraph, i) => (
+                  <p
+                    key={i}
+                    className="text-sm text-white/40 leading-relaxed"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+            </div>
+          </details>
+        )}
+
         {/* Triad Analysis */}
         {isAnalyzed && (
           <div className="space-y-6 mb-10">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-[1px] bg-gradient-to-r from-purple-400/50 to-transparent" />
+              <h2 className="text-sm font-semibold text-purple-400/70 uppercase tracking-wider">
+                Triada analiza
+              </h2>
+              <div className="flex-1 h-[1px] bg-gradient-to-r from-purple-400/20 to-transparent" />
+            </div>
+
             {/* SVG Diagram */}
-            <div className="flex justify-center py-6">
-              <svg viewBox="0 0 200 180" className="w-56 h-auto">
+            <div className="flex justify-center py-4">
+              <svg viewBox="0 0 200 180" className="w-48 h-auto">
                 <defs>
                   <filter id="glow2">
                     <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -182,88 +263,16 @@ export default async function ArticlePage({ params }: Props) {
                     </feMerge>
                   </filter>
                 </defs>
-                <line
-                  x1="100"
-                  y1="20"
-                  x2="180"
-                  y2="160"
-                  stroke="#FF6B6B"
-                  strokeWidth="1.5"
-                  opacity="0.3"
-                />
-                <line
-                  x1="100"
-                  y1="20"
-                  x2="20"
-                  y2="160"
-                  stroke="#4ADE80"
-                  strokeWidth="1.5"
-                  opacity="0.3"
-                />
-                <line
-                  x1="20"
-                  y1="160"
-                  x2="180"
-                  y2="160"
-                  stroke="#818CF8"
-                  strokeWidth="1.5"
-                  opacity="0.3"
-                />
-                <polygon
-                  points="100,20 180,160 20,160"
-                  fill="rgba(192,132,252,0.05)"
-                />
-                <circle
-                  cx="100"
-                  cy="20"
-                  r="8"
-                  fill="#FF6B6B"
-                  filter="url(#glow2)"
-                />
-                <circle
-                  cx="180"
-                  cy="160"
-                  r="8"
-                  fill="#818CF8"
-                  filter="url(#glow2)"
-                />
-                <circle
-                  cx="20"
-                  cy="160"
-                  r="8"
-                  fill="#4ADE80"
-                  filter="url(#glow2)"
-                />
-                <text
-                  x="100"
-                  y="8"
-                  textAnchor="middle"
-                  fill="#FF6B6B"
-                  fontSize="10"
-                  fontWeight="bold"
-                >
-                  TEZA
-                </text>
-                <text
-                  x="192"
-                  y="168"
-                  textAnchor="start"
-                  fill="#818CF8"
-                  fontSize="10"
-                  fontWeight="bold"
-                >
-                  ANTITEZA
-                </text>
-                <text
-                  x="8"
-                  y="168"
-                  textAnchor="end"
-                  fill="#4ADE80"
-                  fontSize="10"
-                  fontWeight="bold"
-                >
-                  SINTEZA
-                </text>
+                <line x1="100" y1="20" x2="180" y2="160" stroke="#FF6B6B" strokeWidth="1.5" opacity="0.3" />
+                <line x1="100" y1="20" x2="20" y2="160" stroke="#4ADE80" strokeWidth="1.5" opacity="0.3" />
+                <line x1="20" y1="160" x2="180" y2="160" stroke="#818CF8" strokeWidth="1.5" opacity="0.3" />
+                <polygon points="100,20 180,160 20,160" fill="rgba(192,132,252,0.05)" />
+                <circle cx="100" cy="20" r="8" fill="#FF6B6B" filter="url(#glow2)" />
+                <circle cx="180" cy="160" r="8" fill="#818CF8" filter="url(#glow2)" />
+                <circle cx="20" cy="160" r="8" fill="#4ADE80" filter="url(#glow2)" />
+                <text x="100" y="8" textAnchor="middle" fill="#FF6B6B" fontSize="10" fontWeight="bold">TEZA</text>
+                <text x="192" y="168" textAnchor="start" fill="#818CF8" fontSize="10" fontWeight="bold">ANTITEZA</text>
+                <text x="8" y="168" textAnchor="end" fill="#4ADE80" fontSize="10" fontWeight="bold">SINTEZA</text>
               </svg>
             </div>
 
@@ -314,7 +323,7 @@ export default async function ArticlePage({ params }: Props) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
           >
-            Preberi originalni članek
+            Preberi originalni članek na {source?.name || "viru"}
             <svg
               className="w-4 h-4"
               fill="none"

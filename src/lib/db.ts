@@ -41,6 +41,8 @@ function initSchema() {
       synthesis_text TEXT,
       key_insight TEXT,
       harmony_score INTEGER,
+      original_content TEXT,
+      transformed_content TEXT,
       language TEXT DEFAULT 'sl'
     );
 
@@ -48,6 +50,14 @@ function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_date ON articles(pub_date DESC);
     CREATE INDEX IF NOT EXISTS idx_analyzed ON articles(analyzed_at);
   `);
+
+  // Migration: add columns if they don't exist (for existing DBs)
+  try {
+    d.exec(`ALTER TABLE articles ADD COLUMN original_content TEXT`);
+  } catch (_) { /* column already exists */ }
+  try {
+    d.exec(`ALTER TABLE articles ADD COLUMN transformed_content TEXT`);
+  } catch (_) { /* column already exists */ }
 }
 
 export function hashUrl(url: string): string {
@@ -103,12 +113,21 @@ export function insertArticles(items: FeedItem[]): number {
   return tx(items);
 }
 
+export function saveOriginalContent(articleId: string, content: string): void {
+  const d = getDb();
+  d.prepare(`UPDATE articles SET original_content = ? WHERE id = ?`).run(
+    content,
+    articleId
+  );
+}
+
 export function saveAnalysis(articleId: string, analysis: TriadAnalysis): void {
   const d = getDb();
   const stmt = d.prepare(`
     UPDATE articles SET
       analyzed_at = datetime('now'),
       transformed_title = ?,
+      transformed_content = ?,
       category = ?,
       thesis_label = ?,
       thesis_text = ?,
@@ -122,6 +141,7 @@ export function saveAnalysis(articleId: string, analysis: TriadAnalysis): void {
   `);
   stmt.run(
     analysis.transformed_title,
+    analysis.transformed_content || null,
     analysis.category,
     analysis.thesis.label,
     analysis.thesis.text,

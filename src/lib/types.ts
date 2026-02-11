@@ -17,6 +17,7 @@ export interface FeedItem {
 
 export interface TriadAnalysis {
   transformed_title: string;
+  transformed_content: string;
   category: string;
   thesis: {
     label: string;
@@ -53,5 +54,7 @@ export interface Article {
   synthesis_text: string | null;
   key_insight: string | null;
   harmony_score: number | null;
+  original_content: string | null;
+  transformed_content: string | null;
   language: string;
 }
